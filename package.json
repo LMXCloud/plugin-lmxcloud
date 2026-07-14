@@ -1,0 +1,111 @@
+{
+  "name": "@lmxcloud/plugin-lmxcloud",
+  "version": "0.1.0",
+  "description": "ElizaOS LLM plugin for LMX Cloud — pay per call in USDC via x402 on Base (no API key)",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "elizaos",
+    "elizaos-plugin",
+    "eliza-plugin",
+    "plugin-lmxcloud",
+    "lmxcloud",
+    "x402",
+    "usdc",
+    "llm"
+  ],
+  "author": "LMX Cloud",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lmxcloud/plugin-lmxcloud.git"
+  },
+  "homepage": "https://lmxcloud.io",
+  "bugs": {
+    "url": "https://github.com/lmxcloud/plugin-lmxcloud/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@x402/core": "^2.17.0",
+    "@x402/evm": "^2.17.0",
+    "viem": "^2.48.11"
+  },
+  "peerDependencies": {
+    "@elizaos/core": "^1.7.0"
+  },
+  "devDependencies": {
+    "@elizaos/core": "^1.7.0",
+    "@types/node": "^22.15.21",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.3"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "LMXCLOUD_PRIVATE_KEY": {
+        "type": "string",
+        "description": "EVM wallet private key (0x… or 64 hex chars) funded with USDC + ETH for gas on Base. Used to pay per LLM call via x402 — no LMX API key required.",
+        "required": true,
+        "sensitive": true
+      },
+      "LMXCLOUD_API_URL": {
+        "type": "string",
+        "description": "LMX Cloud API base URL.",
+        "required": false,
+        "default": "https://api.lmxcloud.io",
+        "sensitive": false
+      },
+      "LMXCLOUD_SMALL_MODEL": {
+        "type": "string",
+        "description": "LMX model alias for TEXT_SMALL (falls back to SMALL_MODEL if unset).",
+        "required": false,
+        "default": "glm-4.7-flash",
+        "sensitive": false
+      },
+      "LMXCLOUD_LARGE_MODEL": {
+        "type": "string",
+        "description": "LMX model alias for TEXT_LARGE.",
+        "required": false,
+        "default": "llama-3-70b",
+        "sensitive": false
+      },
+      "LMXCLOUD_RPC_URL": {
+        "type": "string",
+        "description": "Base JSON-RPC URL used for Permit2 reads/approvals and x402 signing.",
+        "required": false,
+        "default": "https://mainnet.base.org",
+        "sensitive": false
+      },
+      "LMXCLOUD_CHAIN_ID": {
+        "type": "number",
+        "description": "EVM chain id for x402 (8453 = Base mainnet, 84532 = Base Sepolia).",
+        "required": false,
+        "default": 8453,
+        "sensitive": false
+      }
+    }
+  }
+}
