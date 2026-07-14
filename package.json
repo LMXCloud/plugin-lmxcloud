@@ -39,11 +39,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lmxcloud/plugin-lmxcloud.git"
+    "url": "git+https://github.com/johnny-lineen/plugin-lmxcloud.git"
   },
   "homepage": "https://lmxcloud.io",
   "bugs": {
-    "url": "https://github.com/lmxcloud/plugin-lmxcloud/issues"
+    "url": "https://github.com/johnny-lineen/plugin-lmxcloud/issues"
   },
   "publishConfig": {
     "access": "public"

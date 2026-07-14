@@ -8,3 +8,8 @@ dist/
 .DS_Store
 key.pem
 *.pem
+
+.eliza/
+packages/registry/
+package.json.bak
+
