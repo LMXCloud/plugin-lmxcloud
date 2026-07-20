@@ -3,6 +3,7 @@ import {
   createWalletClient,
   http,
   type Account,
+  type Chain,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
@@ -47,10 +48,35 @@ export interface X402ChatClientOptions {
   privateKey: `0x${string}`;
   rpcUrl: string;
   chainId: number;
+  /** Max USDC (6 decimals) to pay per call. Rejects higher 402 amounts. */
+  maxUsdcPerCall: bigint;
 }
 
-function chainForId(chainId: number) {
-  return chainId === 84532 ? baseSepolia : base;
+/** Canonical Circle USDC contracts for chains this plugin supports. */
+const USDC_BY_CHAIN_ID: Record<number, `0x${string}`> = {
+  8453: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  84532: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+};
+
+const FETCH_TIMEOUT_MS = 60_000;
+const TX_RECEIPT_TIMEOUT_MS = 120_000;
+
+function chainForId(chainId: number): Chain {
+  if (chainId === 8453) return base;
+  if (chainId === 84532) return baseSepolia;
+  throw new Error(
+    `Unsupported LMXCLOUD_CHAIN_ID ${chainId}. Supported: 8453 (Base), 84532 (Base Sepolia).`,
+  );
+}
+
+function usdcForChainId(chainId: number): `0x${string}` {
+  const usdc = USDC_BY_CHAIN_ID[chainId];
+  if (!usdc) {
+    throw new Error(
+      `No canonical USDC address for chain ${chainId}. Supported: 8453, 84532.`,
+    );
+  }
+  return usdc;
 }
 
 function decodePaymentError(header: string | null): string | undefined {
@@ -67,13 +93,14 @@ function decodePaymentError(header: string | null): string | undefined {
 
 /**
  * x402 client for LMX Cloud OpenAI-compatible chat completions.
- * Flow: unpaid POST → 402 → sign Permit2/upto payload → paid retry.
+ * Flow: unpaid POST → 402 → validate accept → sign Permit2/upto payload → paid retry.
  */
 export class LmxX402ChatClient {
   private readonly apiUrl: string;
   private readonly rpcUrl: string;
   private readonly chainId: number;
   private readonly network: `eip155:${number}`;
+  private readonly maxUsdcPerCall: bigint;
   private readonly account: Account;
   private readonly httpClient: x402HTTPClient;
   private permit2Approved = false;
@@ -83,6 +110,7 @@ export class LmxX402ChatClient {
     this.rpcUrl = options.rpcUrl;
     this.chainId = options.chainId;
     this.network = `eip155:${options.chainId}`;
+    this.maxUsdcPerCall = options.maxUsdcPerCall;
     this.account = privateKeyToAccount(options.privateKey);
 
     const chain = chainForId(this.chainId);
@@ -127,6 +155,60 @@ export class LmxX402ChatClient {
     return this.account.address;
   }
 
+  /**
+   * Validate the chosen x402 accept entry before any signing or Permit2 work.
+   * Returns the canonical USDC address and required amount in base units.
+   */
+  private validateAccept(accept: {
+    network?: string;
+    asset?: string;
+    amount?: string;
+  } | undefined): { tokenAddress: `0x${string}`; requiredAmount: bigint } {
+    if (!accept) {
+      throw new Error("x402 payment requirements missing accepts[0]");
+    }
+
+    if (accept.network !== this.network) {
+      throw new Error(
+        `x402 accept network mismatch: got ${JSON.stringify(accept.network)}, ` +
+          `expected ${this.network}`,
+      );
+    }
+
+    const expectedUsdc = usdcForChainId(this.chainId);
+    const asset = accept.asset?.trim();
+    if (!asset || asset.toLowerCase() !== expectedUsdc.toLowerCase()) {
+      throw new Error(
+        `x402 accept asset is not canonical USDC for chain ${this.chainId}: ` +
+          `got ${JSON.stringify(accept.asset)}, expected ${expectedUsdc}`,
+      );
+    }
+
+    const amountRaw = accept.amount?.trim();
+    if (!amountRaw || !/^\d+$/.test(amountRaw)) {
+      throw new Error(
+        `x402 accept amount is missing or invalid: ${JSON.stringify(accept.amount)}`,
+      );
+    }
+
+    const requiredAmount = BigInt(amountRaw);
+    if (requiredAmount <= 0n) {
+      throw new Error(
+        `x402 accept amount must be positive, got ${requiredAmount.toString()}`,
+      );
+    }
+
+    if (requiredAmount > this.maxUsdcPerCall) {
+      throw new Error(
+        `x402 accept amount ${requiredAmount.toString()} exceeds max per-call ` +
+          `spend limit ${this.maxUsdcPerCall.toString()} USDC base units ` +
+          `(set LMXCLOUD_MAX_USDC_PER_CALL to raise)`,
+      );
+    }
+
+    return { tokenAddress: expectedUsdc, requiredAmount };
+  }
+
   private async chatFetch(
     body: string,
     headers?: Record<string, string>,
@@ -138,6 +220,7 @@ export class LmxX402ChatClient {
         ...headers,
       },
       body,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
   }
 
@@ -177,7 +260,10 @@ export class LmxX402ChatClient {
       to: approvalTx.to,
       data: approvalTx.data,
     });
-    await publicClient.waitForTransactionReceipt({ hash });
+    await publicClient.waitForTransactionReceipt({
+      hash,
+      timeout: TX_RECEIPT_TIMEOUT_MS,
+    });
     this.permit2Approved = true;
   }
 
@@ -201,12 +287,9 @@ export class LmxX402ChatClient {
       initialBody,
     );
 
-    const accept = paymentRequired.accepts?.[0];
-    const tokenAddress = accept?.asset as `0x${string}` | undefined;
-    const requiredAmount = BigInt(accept?.amount ?? "1000");
-    if (!tokenAddress) {
-      throw new Error("x402 payment requirements missing USDC asset address");
-    }
+    const { tokenAddress, requiredAmount } = this.validateAccept(
+      paymentRequired.accepts?.[0],
+    );
 
     await this.ensurePermit2Allowance(tokenAddress, requiredAmount);
 
@@ -259,6 +342,7 @@ export function getOrCreateChatClient(
     options.privateKey,
     options.rpcUrl,
     options.chainId,
+    options.maxUsdcPerCall.toString(),
   ].join("|");
   let client = clients.get(key);
   if (!client) {

@@ -105,6 +105,13 @@
         "required": false,
         "default": 8453,
         "sensitive": false
+      },
+      "LMXCLOUD_MAX_USDC_PER_CALL": {
+        "type": "string",
+        "description": "Max USDC (6 decimals / base units) the plugin will pay for a single x402 call. Challenges above this amount are rejected. Default 5000000 ($5).",
+        "required": false,
+        "default": "5000000",
+        "sensitive": false
       }
     }
   }

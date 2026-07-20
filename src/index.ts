@@ -20,6 +20,7 @@ export const lmxcloudPlugin: Plugin = {
     LMXCLOUD_LARGE_MODEL: process.env.LMXCLOUD_LARGE_MODEL,
     LMXCLOUD_RPC_URL: process.env.LMXCLOUD_RPC_URL,
     LMXCLOUD_CHAIN_ID: process.env.LMXCLOUD_CHAIN_ID,
+    LMXCLOUD_MAX_USDC_PER_CALL: process.env.LMXCLOUD_MAX_USDC_PER_CALL,
   },
   async init(_config, runtime) {
     // Validate the required wallet key early so misconfig fails at boot.

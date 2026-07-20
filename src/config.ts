@@ -5,6 +5,8 @@ export const DEFAULT_SMALL_MODEL = "glm-4.7-flash";
 export const DEFAULT_LARGE_MODEL = "llama-3-70b";
 export const DEFAULT_RPC_URL = "https://mainnet.base.org";
 export const DEFAULT_CHAIN_ID = 8453;
+/** Max USDC (6 decimals) the client will pay per x402 call. Default: $5. */
+export const DEFAULT_MAX_USDC_PER_CALL = 5_000_000n;
 
 export function getSetting(
   runtime: IAgentRuntime,
@@ -78,4 +80,18 @@ export function getChainId(runtime: IAgentRuntime): number {
 
 export function getNetwork(runtime: IAgentRuntime): `eip155:${number}` {
   return `eip155:${getChainId(runtime)}`;
+}
+
+export function getMaxUsdcPerCall(runtime: IAgentRuntime): bigint {
+  const raw = getSetting(
+    runtime,
+    "LMXCLOUD_MAX_USDC_PER_CALL",
+    String(DEFAULT_MAX_USDC_PER_CALL),
+  );
+  if (raw === undefined || !/^\d+$/.test(raw.trim())) {
+    throw new Error(
+      `Invalid LMXCLOUD_MAX_USDC_PER_CALL: ${raw} (expected a non-negative integer in USDC base units)`,
+    );
+  }
+  return BigInt(raw.trim());
 }

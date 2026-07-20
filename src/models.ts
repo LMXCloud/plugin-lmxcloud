@@ -7,6 +7,7 @@ import {
   getApiUrl,
   getChainId,
   getLargeModel,
+  getMaxUsdcPerCall,
   getPrivateKey,
   getRpcUrl,
   getSmallModel,
@@ -45,6 +46,7 @@ async function generateText(
     privateKey: getPrivateKey(runtime),
     rpcUrl: getRpcUrl(runtime),
     chainId: getChainId(runtime),
+    maxUsdcPerCall: getMaxUsdcPerCall(runtime),
   });
 
   logger.debug(
