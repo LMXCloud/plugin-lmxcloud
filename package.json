@@ -1,6 +1,6 @@
 {
   "name": "@lmxcloud/plugin-lmxcloud",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "ElizaOS LLM plugin for LMX Cloud — pay per call in USDC via x402 on Base (no API key)",
   "type": "module",
   "main": "dist/index.js",
